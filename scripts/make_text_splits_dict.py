@@ -25,7 +25,7 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer,device):
         
         #Encode
         encoded = tokenizer.encode_plus(sentence_1, text_pair=sentence_2, return_tensors='pt')
-        encoded.to(device=cuda)
+        encoded.to(device)
         #print(encoded['input_ids'].shape[1])
         if encoded['input_ids'].shape[1] > 512: # If two sentences are too long, just split them
             prob_seq.append(0)
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     ###### INITIALIZE
     nsp_model = BertForNextSentencePrediction.from_pretrained('bert-base-cased')
     nsp_model.eval()
-    nsp_model.cuda()
+    nsp_model.to(device)
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
     
@@ -120,8 +120,7 @@ if __name__ == "__main__":
                 search_context_splits.append(cutoff_indices)
 
             qid_struct[entry['question_id']] = (wiki_context_splits,search_context_splits)
-            if ii == 10:
-                break
+            
         file_name = key + '_qid_struct.pkl'
         with open('/scratch/awd275/NLU_data/' + file_name, 'wb') as handle:
             pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)

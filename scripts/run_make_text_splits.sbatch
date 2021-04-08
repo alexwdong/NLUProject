@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64GB
 #SBATCH --gres=gpu:1
-#SBATCH --time=12:00:00
+#SBATCH --time=36:00:00
 #SBATCH --mail-type=END
 #SBATCH --mail-user=awd275@nyu.edu
 #SBATCH --output=slurm_%j.out
