@@ -4,7 +4,7 @@ import torch
 from nltk.tokenize import sent_tokenize
 from torch.nn.functional import softmax
 from torch.utils.data import DataLoader
-from tqdm.notebook import tqdm
+import tqdm
 from transformers import BertTokenizer,BertForNextSentencePrediction
 import pickle
 from torch.utils.data import Dataset
@@ -51,7 +51,7 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
     with torch.no_grad():
         # Load into a dataset and dataloader. We do this for speed
         context_dataset = ContextDataset(sentence_pair_list)
-        context_loader = DataLoader(context_dataset, batch_size=64, shuffle=False, pin_memory=True)
+        context_loader = DataLoader(context_dataset, batch_size=128, shuffle=False, pin_memory=True)
         probs_list = [] #Will be list of tensors
         for batch_idx,batch in enumerate(context_loader):
             if len(batch)==0:
@@ -130,8 +130,8 @@ if __name__ == "__main__":
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
     #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
-    dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
-    #dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
+    #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
+    dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
     
     nsp_model = BertForNextSentencePrediction.from_pretrained('prajjwal1/bert-small')
     nsp_model.eval()
@@ -144,9 +144,9 @@ if __name__ == "__main__":
     for key in dataset.keys():
         sub_dataset = dataset[key]
         qid_struct = {}
-        for ii, entry  in tqdm(enumerate(dataset)):
-            if ii ==5:
-                break
+        for ii, entry  in enumerate(sub_dataset):
+            #if ii ==5:
+            #    break
             print('started: ',str(ii))
 
             if len(entry['entity_pages']['wiki_context'])==0:
@@ -169,6 +169,6 @@ if __name__ == "__main__":
             qid_struct[entry['question_id']] = (wiki_context_probs,search_context_probs)
         file_name = key + '_qid_struct.pkl'
 
-        with open(r"\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\\" + file_name, 'wb') as handle:
+        with open("/scratch/awd275/NLU_data/" + file_name, 'wb') as handle:
             pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
