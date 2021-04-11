@@ -114,7 +114,7 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
     
     prob_seq, sentence_list = get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer,device)
     tokens_per_sentence_list = get_tokens_per_sentence_list(tokenizer, sentence_list)
-    cutoff_indices = apply_threshold(prob_seq, tokens_per_sentence_list, threshold=.5)
+    cutoff_indices = apply_threshold(prob_seq, tokens_per_sentence_list, threshold=threshold)
     
     return cutoff_indices
 
@@ -139,7 +139,6 @@ if __name__ == "__main__":
     tokenizer = BertTokenizer.from_pretrained('prajjwal1/bert-small')
 
 
-    threshold=.5
     qid_struct = {}
     for key in dataset.keys():
         sub_dataset = dataset[key]
