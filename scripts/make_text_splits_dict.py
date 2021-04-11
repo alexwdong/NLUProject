@@ -59,7 +59,7 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
             # I swear to god this is a legitimate pytorch bug, but we need to reorganize the batch from the dataloader. Whatever
             batch_fixed = [(s1,s2) for s1,s2 in zip(batch[0], batch[1])] 
             # Batch encode
-            sentence_pairs = tokenizer.batch_encode_plus(batch_fixed, return_tensors='pt',padding='max_length')
+            sentence_pairs = tokenizer.batch_encode_plus(batch_fixed, return_tensors='pt',padding=True)
             # Run through the model
             sentence_pairs.to(device)
             logits = nsp_model(**sentence_pairs)[0]
@@ -70,12 +70,15 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
             probs_list.append(probs)
             
         #Cat the list of tensors to get a bsize x sequence_length tensors
-        all_probs = torch.cat(probs_list)
+        if len(probs_list)  == 0:
+            all_probs = []
+        else:
+            all_probs = list(torch.cat(probs_list))
     # Now, we need to sort the probabilities. Some of probabilities are coming from over_length_indices, some of them are coming from indices_to_be_processed
     # We'll zip, then sort, then take the sorted probs.
     indices = over_length_indices + indices_to_be_processed
     one_probs = [1]*len(over_length_indices)
-    probs = one_probs + list(all_probs)
+    probs = one_probs + all_probs
     probs = [x for _, x in sorted(zip(indices, probs))]
     # Return probabilities, and also return sentence list for use later as well
     return probs, sentence_list
@@ -130,10 +133,10 @@ if __name__ == "__main__":
     dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
     #dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
     
-    nsp_model = BertForNextSentencePrediction.from_pretrained('bert-base-cased')
+    nsp_model = BertForNextSentencePrediction.from_pretrained('prajjwal1/bert-small')
     nsp_model.eval()
     nsp_model.to(device)
-    tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+    tokenizer = BertTokenizer.from_pretrained('prajjwal1/bert-small')
 
 
     threshold=.5
