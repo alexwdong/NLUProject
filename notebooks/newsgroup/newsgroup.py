@@ -158,16 +158,3 @@ class Newsgroups(datasets.GeneratorBasedBuilder):
             ) as f:  # here we can ignore byte encoded tokens. we only have a very few and in most case it happens at the end of the file (kind of \FF)
                 text = f.read()
                 yield id_, {"text": text}
-© 2021 GitHub, Inc.
-Terms
-Privacy
-Security
-Status
-Docs
-Contact GitHub
-Pricing
-API
-Training
-Blog
-About
-Loading complete
