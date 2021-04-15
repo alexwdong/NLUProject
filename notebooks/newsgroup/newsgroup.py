@@ -1,35 +1,3 @@
-Skip to content
-Search or jump to…
-
-Pull requests
-Issues
-Marketplace
-Explore
- 
-@alexwdong 
-alexwdong
-/
-datasets
-forked from huggingface/datasets
-0
-0844
-Code
-Pull requests
-Actions
-Projects
-Wiki
-Security
-Insights
-Settings
-datasets/datasets/newsgroup/newsgroup.py /
-@alexwdong
-alexwdong fixed one instance of 'train' to 'test'
-Latest commit 1ab9850 2 hours ago
- History
- 5 contributors
-@thomwolf@lhoestq@mariosasko@alexwdong@mariamabarham
-161 lines (139 sloc)  5.38 KB
-  
 # coding=utf-8
 # Copyright 2020 The TensorFlow Datasets Authors and the HuggingFace Datasets Authors.
 #
