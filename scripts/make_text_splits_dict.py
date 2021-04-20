@@ -4,7 +4,6 @@ import torch
 from nltk.tokenize import sent_tokenize
 from torch.nn.functional import softmax
 from torch.utils.data import DataLoader
-import tqdm
 from transformers import BertTokenizer,BertForNextSentencePrediction
 import pickle
 from torch.utils.data import Dataset
@@ -120,6 +119,7 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
 
 # Start Script
 if __name__ == "__main__":
+    mode = '20news'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
@@ -129,45 +129,85 @@ if __name__ == "__main__":
         print('Memory Usage:')
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
-    #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
-    #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
-    dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
-    
+      
     nsp_model = BertForNextSentencePrediction.from_pretrained('prajjwal1/bert-small')
     nsp_model.eval()
     nsp_model.to(device)
     tokenizer = BertTokenizer.from_pretrained('prajjwal1/bert-small')
 
-
-    qid_struct = {}
-    for key in dataset.keys():
-        sub_dataset = dataset[key]
+    if mode == 'wikihop':
+         #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
+        #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
+        dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
         qid_struct = {}
-        for ii, entry  in enumerate(sub_dataset):
-            #if ii ==5:
-            #    break
-            print('started: ',str(ii))
+        for key in dataset.keys():
+            sub_dataset = dataset[key]
+            qid_struct = {}
+            for ii, entry  in enumerate(sub_dataset):
+                #if ii ==5:
+                #    break
+                print('started: ',str(ii))
 
-            if len(entry['entity_pages']['wiki_context'])==0:
-                wiki_context_probs = None
-            else:
-                wiki_context_probs = []
-                for context in entry['entity_pages']['wiki_context']:
+                if len(entry['entity_pages']['wiki_context'])==0:
+                    wiki_context_probs = None
+                else:
+                    wiki_context_probs = []
+                    for context in entry['entity_pages']['wiki_context']:
+                        prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
+                        wiki_context_probs.append(prob_seq)
+
+                if len(entry['search_results']['search_context']) == 0:
+                     search_context_probs = None
+                else:
+                    search_context_probs = []
+                    for context in entry['search_results']['search_context']:
+
+                        prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
+                        search_context_probs.append(prob_seq)
+
+                qid_struct[entry['question_id']] = (wiki_context_probs,search_context_probs)
+            file_name = key + '_qid_struct.pkl'
+
+            with open("/scratch/awd275/NLU_data/" + file_name, 'wb') as handle:
+                pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    elif mode == '20news':
+        newsgroup_configs = ['bydate_alt.atheism',
+                         'bydate_comp.graphics',
+                         'bydate_comp.os.ms-windows.misc',
+                         'bydate_comp.sys.ibm.pc.hardware',
+                         'bydate_comp.sys.mac.hardware',
+                         'bydate_comp.windows.x',
+                         'bydate_misc.forsale',
+                         'bydate_rec.autos',
+                         'bydate_rec.motorcycles',
+                         'bydate_rec.sport.baseball',
+                         'bydate_rec.sport.hockey',
+                         'bydate_sci.crypt',
+                         'bydate_sci.electronics',
+                         'bydate_sci.med',
+                         'bydate_sci.space',
+                         'bydate_soc.religion.christian',
+                         'bydate_talk.politics.guns',
+                         'bydate_talk.politics.mideast',
+                         'bydate_talk.politics.misc',
+                         'bydate_talk.religion.misc']
+        splits = ['train','test']
+        for split in splits: # Loop over train test
+            dataset_list = []
+            for config in newsgroup_configs: #loop over labels
+                subset_path = r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\\'+ split+ '\\'+ config
+                dataset_list.append((config,load_from_disk(subset_path)))
+
+            for label, sub_dataset in dataset_list: #Loop over labels
+                qid_struct = {}
+                for ii, entry in enumerate(sub_dataset):# Loop over data entries with the same label
+                    context = entry['text']
                     prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
-                    wiki_context_probs.append(prob_seq)
+                    qid_struct[ii] = prob_seq
+                file_name = label + '_qid_struct.pkl'
+                with open(r"\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\processed\\" + split + '\\' +file_name, 'wb') as handle:
+                    pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
 
-            if len(entry['search_results']['search_context']) == 0:
-                 search_context_probs = None
-            else:
-                search_context_probs = []
-                for context in entry['search_results']['search_context']:
-
-                    prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
-                    search_context_probs.append(prob_seq)
-
-            qid_struct[entry['question_id']] = (wiki_context_probs,search_context_probs)
-        file_name = key + '_qid_struct.pkl'
-
-        with open("/scratch/awd275/NLU_data/" + file_name, 'wb') as handle:
-            pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
 
