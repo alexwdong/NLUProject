@@ -146,7 +146,7 @@ if __name__ == "__main__":
         bert_encoded_segments_list = []
         
         with torch.no_grad():
-            for idx, batch in tqdm(enumerate(train_loader)):
+            for idx, batch in tqdm(enumerate(split_loader)):
                 label =  batch[0]
                 segments = torch.cat(batch[1],axis=0)
                 segments = segments.squeeze(axis=1)
