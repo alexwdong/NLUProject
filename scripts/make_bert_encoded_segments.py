@@ -6,7 +6,7 @@ import torch.optim as optim
 
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import DataLoader
-from tqdm.notebook import tqdm
+
 from transformers import BertTokenizer,BertModel
 
 from torch.utils.data import Dataset
@@ -120,9 +120,9 @@ if __name__ == "__main__":
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
     
     
-    dataset_list = []
     splits = ['train','test']
     for split in splits:
+        dataset_list = []
         for config in newsgroup_configs:
             subset_path = data_dir + split + '\\'+ config
             dataset_list.append((config,load_from_disk(subset_path)))
@@ -146,7 +146,7 @@ if __name__ == "__main__":
         bert_encoded_segments_list = []
         
         with torch.no_grad():
-            for idx, batch in tqdm(enumerate(split_loader)):
+            for idx, batch in enumerate(split_loader):
                 label =  batch[0]
                 segments = torch.cat(batch[1],axis=0)
                 segments = segments.squeeze(axis=1)
