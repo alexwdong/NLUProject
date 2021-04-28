@@ -66,7 +66,7 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
             probs = softmax(logits, dim=1)
             probs = probs[:,0]
             # Add to list of tensors
-            probs_list.append(probs)
+            probs_list.append(probs.cpu())
             
         #Cat the list of tensors to get a bsize x sequence_length tensors
         if len(probs_list)  == 0:
@@ -82,40 +82,6 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
     # Return probabilities, and also return sentence list for use later as well
     return probs, sentence_list
 
-
-def get_tokens_per_sentence_list(tokenizer,sentence_list):
-    tokens_per_sentence_list = [len(tokenizer.encode(sentence)) for sentence in sentence_list]
-    return tokens_per_sentence_list
-
-def apply_threshold(prob_seq,tokens_per_sentence_list,threshold):
-    '''
-    If prob_seq is empty, we will return and empty list.
-    '''
-    # Initialize
-    cutoff_indices = []
-    running_length = tokens_per_sentence_list[0]
-    # 
-    for ii,prob in enumerate(prob_seq):
-        if prob <= threshold:
-            cutoff_indices.append(ii)
-            running_length = tokens_per_sentence_list[ii+1]
-            
-        elif running_length + tokens_per_sentence_list[ii+1] > 512:
-            cutoff_indices.append(ii)
-            running_length = tokens_per_sentence_list[ii+1]
-            
-        else:
-            running_length += tokens_per_sentence_list[ii+1]
-        
-    return cutoff_indices
-
-def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
-    
-    prob_seq, sentence_list = get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer,device)
-    tokens_per_sentence_list = get_tokens_per_sentence_list(tokenizer, sentence_list)
-    cutoff_indices = apply_threshold(prob_seq, tokens_per_sentence_list, threshold=threshold)
-    
-    return cutoff_indices
 
 # Start Script
 if __name__ == "__main__":

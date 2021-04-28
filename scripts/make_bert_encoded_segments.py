@@ -25,7 +25,7 @@ def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     segments_list = []
     #If cutoff indices is an empty list, means we don't split at all. then all the sentences get joined into one segment
     if len(cutoff_indices) == 0: 
-        segment = "".join(sentence_list)
+        segment = "".join(sentence_list).lower()
         encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         return segments_list
@@ -34,21 +34,21 @@ def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     segments_list = []
     for split_idx in cutoff_indices: 
         grouped_sentences_list = sentence_list[start_idx:split_idx+1] 
-        segment = "".join(grouped_sentences_list)
+        segment = "".join(grouped_sentences_list).lower()
         encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         start_idx = split_idx+1
     # make last split
     grouped_sentences_list = sentence_list[start_idx:] 
-    segment = "".join(grouped_sentences_list)
+    segment = "".join(grouped_sentences_list).lower()
     encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True, return_tensors='pt')
     segments_list.append(encoded_segment)
     #Return 
     return segments_list
 
-class NewsgroupDataset(Dataset):
+class SegmentDataset(Dataset):
     def __init__(self, dataset_list,configs, label_to_cutoff_indices_dict,tokenizer):
-        print("In Newsgroup Dataset")
+        print("In Segment Dataset")
         self.label_to_label_idx_dict = {}
         for ii,label in enumerate(configs):
             self.label_to_label_idx_dict[label]=ii
@@ -119,6 +119,10 @@ if __name__ == "__main__":
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
     
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    bert_model= BertModel.from_pretrained('bert-base-uncased')
+    bert_model.eval()
+    bert_model.to(device)
     
     splits = ['train','test']
     for split in splits:
@@ -133,13 +137,10 @@ if __name__ == "__main__":
         with open(label_to_cutoff_indices_file, 'rb') as handle:
             label_to_cutoff_indices_dict = pickle.load(handle)
 
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+       
 
-        split_set = NewsgroupDataset(dataset_list,newsgroup_configs,label_to_cutoff_indices_dict,tokenizer)
+        split_set = SegmentDataset(dataset_list,newsgroup_configs,label_to_cutoff_indices_dict,tokenizer)
 
-        bert_model= BertModel.from_pretrained('bert-base-uncased')
-        bert_model.eval()
-        bert_model.to(device)
 
         split_loader = DataLoader(split_set, batch_size=1, shuffle=False, pin_memory=True)
         
@@ -156,10 +157,12 @@ if __name__ == "__main__":
                 batch_encoded_seg_list = []
                 for ii, small_batch in enumerate(onthefly_loader):
                     out = bert_model(input_ids=small_batch.to(device))
-                    sub_bert_encoded_segments = out['pooler_output']
+                    # out['last_hidden_state'] is bsize x seq_len x embedding_size. We want to take only the embedding
+                    # which corresponds to the CLS token.
+                    sub_bert_encoded_segments = out['last_hidden_state'][:,0,:] #take only the first
                     batch_encoded_seg_list.append(sub_bert_encoded_segments)
                 bert_encoded_segments = torch.cat(batch_encoded_seg_list)
                 bert_encoded_segments_list.append((label,bert_encoded_segments.cpu()))
-            file_name = 'bert_encoded_segments_list_'
-            with open(processed_dir+ split+'\\' + file_name + str(threshold) +'.pkl', 'wb') as handle:
-                pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        file_name = 'bert_encoded_segments_list_'
+        with open(processed_dir+ split+'\\' + file_name + str(threshold) +'.pkl', 'wb') as handle:
+            pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)

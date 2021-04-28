@@ -56,18 +56,6 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
 
 # Start Script
 if __name__ == "__main__":
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-
-    #Additional Info when using cuda
-    if device.type == 'cuda':
-        print(torch.cuda.get_device_name(0))
-        print('Memory Usage:')
-        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
-    #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
-    #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
-    
     # Use full sized bert model tokenizer
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     
@@ -124,8 +112,9 @@ if __name__ == "__main__":
                 cutoff_indices = apply_threshold(prob_seq, tokens_per_sentence_list, threshold=threshold)
                 idx_to_cutoff_indices[ii] = cutoff_indices
             label_to_cutoff_indices_dict[label] = idx_to_cutoff_indices
-            with open(processed_dir + split + '\\' + file_name + str(threshold) +'.pkl', 'wb') as handle:
-                pickle.dump(label_to_cutoff_indices_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+        with open(processed_dir + split + '\\' + file_name + str(threshold) +'.pkl', 'wb') as handle:
+            pickle.dump(label_to_cutoff_indices_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 
