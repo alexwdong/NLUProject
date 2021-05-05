@@ -2,18 +2,17 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
+from torch.utils.data import Dataset, DataLoader
 
 from nltk.tokenize import sent_tokenize
-from torch.utils.data import DataLoader
 
 from transformers import BertTokenizer,BertModel
-
-from torch.utils.data import Dataset
 
 from datasets import load_from_disk,load_dataset
 
 import pickle
+import argparse
+
 def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     '''
     Input:
@@ -90,14 +89,22 @@ def squeeze_tensors(batch):
     batch['attention_mask'] = batch['attention_mask'].squeeze(axis=1).squeeze(axis=1)
     return batch
 
-# Start Script
-if __name__ == "__main__":
 
-    # Start Script
-    threshold = 1.0
-    data_dir = r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\\'
-    processed_dir = data_dir + 'processed\\'
+# ArgParse
+parser = argparse.ArgumentParser(description='Takes "label_to_cutoff_indices" pickle file, and creates BERT encoded segments')
 
+parser.add_argument('-t','--threshold',help='threshold. This isnt technically required, because the threshold is already used in the previous script (make_cutoff_indices), but this helps for loading the correct file.', required=True)
+parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
+parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required=True)
+parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the label_to_cutoff_indices pickle file and also where the output of this script will be stored', required=True)
+args = vars(parser.parse_args())
+
+threshold = float(args['threshold'])
+mode = args['mode']
+data_dir = args['data_dir']
+processed_dir = args['processed_dir']
+
+if mode == 'newsgroup':
     newsgroup_configs = ['bydate_alt.atheism',
                          'bydate_comp.graphics',
                          'bydate_comp.os.ms-windows.misc',
@@ -118,7 +125,12 @@ if __name__ == "__main__":
                          'bydate_talk.politics.mideast',
                          'bydate_talk.politics.misc',
                          'bydate_talk.religion.misc']
+    splits = ['train','test']
 
+# Start Script
+if __name__ == "__main__":
+
+    # Start Script
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
@@ -134,19 +146,17 @@ if __name__ == "__main__":
     bert_model= BertModel.from_pretrained('bert-base-uncased')
     bert_model.eval()
     bert_model.to(device)
-    
-    splits = ['train','test']
     for split in splits:
         dataset_list = []
         #Create (train, val or test) Dataset list 
         for config in newsgroup_configs:
-            subset_path = data_dir + split + '\\'+ config
+            subset_path = data_dir + split + '/'+ config
             dataset_list.append((config,load_from_disk(subset_path)))
         
         # Load the label_to_cutoff_indices pkl file, which contains the sentence splits for each long document.
         label_to_cutoff_indices_file = \
-            r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\processed\\' + \
-            split + '\label_to_cutoff_indices_' + str(threshold) + '.pkl'
+            processed_dir + \
+            split + '/label_to_cutoff_indices_' + str(threshold) + '.pkl'
         with open(label_to_cutoff_indices_file, 'rb') as handle:
             label_to_cutoff_indices_dict = pickle.load(handle)
 
@@ -177,5 +187,5 @@ if __name__ == "__main__":
                 bert_encoded_segments = torch.cat(batch_encoded_seg_list)
                 bert_encoded_segments_list.append((label,bert_encoded_segments.cpu()))
         file_name = 'bert_encoded_segments_list_'
-        with open(processed_dir+ split+'\\' + file_name + str(threshold) +'.pkl', 'wb') as handle:
+        with open(processed_dir+ split+'/' + file_name + str(threshold) +'.pkl', 'wb') as handle:
             pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
