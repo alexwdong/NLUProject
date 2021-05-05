@@ -14,19 +14,20 @@ from torch.utils.data import Dataset
 from datasets import load_from_disk,load_dataset
 
 import pickle
-
 def create_segments_list(cutoff_indices, sentence_list,tokenizer):
-    # prob_seq contains the indices on which to split on.
-    # e.g, prob seq contains idx 3
-    # then 0,1,2,3 are one segment, 4,5,... are another
-    
-    # e.g, prob seq contains idx 0
-    # then 0 is one segment, 1,2,3,... are another
+    '''
+    Input:
+        cutoff_indices: a list of cutoff indices. each index should be in the range of 0 to n-1, where n=len(sentence_list)
+        sentence_list: a list of sentences from sent_tokenize
+        tokenizer: the tokenizer for the model.
+    Returns:
+        segments_list: a list of 3-tuples of type BatchEncoding. This 3-tuple is the output of encode_plus
+    '''
     segments_list = []
     #If cutoff indices is an empty list, means we don't split at all. then all the sentences get joined into one segment
     if len(cutoff_indices) == 0: 
         segment = "".join(sentence_list).lower()
-        encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
+        encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         return segments_list
     #Make first n-1 splits
@@ -35,20 +36,19 @@ def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     for split_idx in cutoff_indices: 
         grouped_sentences_list = sentence_list[start_idx:split_idx+1] 
         segment = "".join(grouped_sentences_list).lower()
-        encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
+        encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         start_idx = split_idx+1
     # make last split
     grouped_sentences_list = sentence_list[start_idx:] 
     segment = "".join(grouped_sentences_list).lower()
-    encoded_segment = tokenizer.encode(segment,padding='max_length',max_length=512,truncation=True, return_tensors='pt')
+    encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True, return_tensors='pt')
     segments_list.append(encoded_segment)
     #Return 
     return segments_list
 
 class SegmentDataset(Dataset):
     def __init__(self, dataset_list,configs, label_to_cutoff_indices_dict,tokenizer):
-        print("In Segment Dataset")
         self.label_to_label_idx_dict = {}
         for ii,label in enumerate(configs):
             self.label_to_label_idx_dict[label]=ii
@@ -72,21 +72,32 @@ class SegmentDataset(Dataset):
         return(self.data[idx])
     
 class OnTheFlyDataset(Dataset):
-    def __init__(self, tensor):
-        self.tensor = tensor
+    def __init__(self, encode_plus_out_list):
+        self.encode_plus_out_list = encode_plus_out_list
         
     def __len__(self):
-        return self.tensor.shape[0]
+        return len(self.encode_plus_out_list)
  
     def __getitem__(self,idx):
-        return(self.tensor[idx])
+        return(self.encode_plus_out_list[idx])
+def squeeze_tensors(batch):
+    '''
+    batch has four dimensions (b_size,useless,useless, 512 (representing padded tokens))
+    We want to squeeze the second and third dimensions
+    '''
+    batch['input_ids'] = batch['input_ids'].squeeze(axis=1).squeeze(axis=1)
+    batch['token_type_ids'] = batch['token_type_ids'].squeeze(axis=1).squeeze(axis=1)
+    batch['attention_mask'] = batch['attention_mask'].squeeze(axis=1).squeeze(axis=1)
+    return batch
 
 # Start Script
 if __name__ == "__main__":
+
+    # Start Script
     threshold = 1.0
     data_dir = r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\\'
     processed_dir = data_dir + 'processed\\'
-    
+
     newsgroup_configs = ['bydate_alt.atheism',
                          'bydate_comp.graphics',
                          'bydate_comp.os.ms-windows.misc',
@@ -107,8 +118,7 @@ if __name__ == "__main__":
                          'bydate_talk.politics.mideast',
                          'bydate_talk.politics.misc',
                          'bydate_talk.religion.misc']
-    
-    
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
@@ -118,6 +128,7 @@ if __name__ == "__main__":
         print('Memory Usage:')
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
     
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     bert_model= BertModel.from_pretrained('bert-base-uncased')
@@ -127,36 +138,38 @@ if __name__ == "__main__":
     splits = ['train','test']
     for split in splits:
         dataset_list = []
+        #Create (train, val or test) Dataset list 
         for config in newsgroup_configs:
             subset_path = data_dir + split + '\\'+ config
             dataset_list.append((config,load_from_disk(subset_path)))
-
+        
+        # Load the label_to_cutoff_indices pkl file, which contains the sentence splits for each long document.
         label_to_cutoff_indices_file = \
             r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\processed\\' + \
-            split + '\label_to_cutoff_indices_'+str(threshold)+'.pkl'
+            split + '\label_to_cutoff_indices_' + str(threshold) + '.pkl'
         with open(label_to_cutoff_indices_file, 'rb') as handle:
             label_to_cutoff_indices_dict = pickle.load(handle)
 
-       
 
+        #Create a Segment Dataset which contains tuples of (label - int, list of segments - list of 3-tuple which is output from tokenizer.encode_plus))
         split_set = SegmentDataset(dataset_list,newsgroup_configs,label_to_cutoff_indices_dict,tokenizer)
-
-
         split_loader = DataLoader(split_set, batch_size=1, shuffle=False, pin_memory=True)
         
+        #Initialize bert_encoded_segments_list, this will contain the output that we want to dump
         bert_encoded_segments_list = []
-        
         with torch.no_grad():
             for idx, batch in enumerate(split_loader):
                 label =  batch[0]
-                segments = torch.cat(batch[1],axis=0)
-                segments = segments.squeeze(axis=1)
-                segments.to(device)
-                onthefly_dataset = OnTheFlyDataset(segments)
-                onthefly_loader =  DataLoader(onthefly_dataset, batch_size=4, shuffle=False, pin_memory=True)
+                encoded_segments = batch[1]
+                onthefly_dataset = OnTheFlyDataset(encoded_segments)
+                onthefly_loader = DataLoader(onthefly_dataset, batch_size=4, shuffle=False, pin_memory=True)
                 batch_encoded_seg_list = []
                 for ii, small_batch in enumerate(onthefly_loader):
-                    out = bert_model(input_ids=small_batch.to(device))
+                    small_batch = squeeze_tensors(small_batch)
+                    batch_input_ids = small_batch['input_ids'].to(device)
+                    batch_token_type_ids = small_batch['token_type_ids'].to(device)
+                    batch_attention_mask = small_batch['attention_mask'].to(device)
+                    out = bert_model(batch_input_ids, batch_token_type_ids, batch_attention_mask)
                     # out['last_hidden_state'] is bsize x seq_len x embedding_size. We want to take only the embedding
                     # which corresponds to the CLS token.
                     sub_bert_encoded_segments = out['last_hidden_state'][:,0,:] #take only the first
