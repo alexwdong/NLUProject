@@ -1,2 +1,3 @@
 notebooks/baseline_models/us-consumer-finance-complaints/
 notebooks/baseline_models/model*
+.ipynb_checkpoints

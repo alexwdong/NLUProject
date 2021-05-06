@@ -1,3 +1,5 @@
+exec(open("../header.py").read())
+
 from torch.nn.functional import softmax
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_from_disk

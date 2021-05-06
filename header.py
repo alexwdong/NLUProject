@@ -3,6 +3,8 @@ import os
 # Run the following to set up a symbolic link
 # ln -s /scratch/awd275/NLU_data ~/NLU_data
 
+# Run `exec(open("../header.py").read())` at the beginning of each script to use header
+
 DATA_DIR = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
 RAW_DIR = lambda x = '':data_dir(f'raw/{x}')
 SEGMENT_DIR = lambda x = '':data_dir(f'segmentations/{x}')

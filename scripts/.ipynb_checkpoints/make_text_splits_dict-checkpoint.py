@@ -1,12 +1,17 @@
+exec(open("../header.py").read())
+
+from torch.nn.functional import softmax
+from torch.utils.data import Dataset, DataLoader
 from datasets import load_from_disk
+
+from nltk.tokenize import sent_tokenize
+
+from transformers import BertTokenizer,BertForNextSentencePrediction
+
+import pickle
 import json
 import torch
-from nltk.tokenize import sent_tokenize
-from torch.nn.functional import softmax
-from torch.utils.data import DataLoader
-from transformers import BertTokenizer,BertForNextSentencePrediction
-import pickle
-from torch.utils.data import Dataset
+import argparse
 
 class ContextDataset(Dataset):
     def __init__(self, sentence_pair_list):
@@ -82,10 +87,44 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
     # Return probabilities, and also return sentence list for use later as well
     return probs, sentence_list
 
+# ArgParse
+parser = argparse.ArgumentParser(description='Takes "label_to_cutoff_indices" pickle file, and creates BERT encoded segments')
+
+parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
+parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required=True)
+parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the label_to_cutoff_indices pickle file and also where the output of this script will be stored', required=True)
+args = vars(parser.parse_args())
+
+mode = args['mode']
+data_dir = args['data_dir']
+processed_dir = args['processed_dir']
+
+if mode == 'newsgroup':
+    newsgroup_configs = ['bydate_alt.atheism',
+                         'bydate_comp.graphics',
+                         'bydate_comp.os.ms-windows.misc',
+                         'bydate_comp.sys.ibm.pc.hardware',
+                         'bydate_comp.sys.mac.hardware',
+                         'bydate_comp.windows.x',
+                         'bydate_misc.forsale',
+                         'bydate_rec.autos',
+                         'bydate_rec.motorcycles',
+                         'bydate_rec.sport.baseball',
+                         'bydate_rec.sport.hockey',
+                         'bydate_sci.crypt',
+                         'bydate_sci.electronics',
+                         'bydate_sci.med',
+                         'bydate_sci.space',
+                         'bydate_soc.religion.christian',
+                         'bydate_talk.politics.guns',
+                         'bydate_talk.politics.mideast',
+                         'bydate_talk.politics.misc',
+                         'bydate_talk.religion.misc']
+
+    splits = ['train','test']
 
 # Start Script
 if __name__ == "__main__":
-    mode = '20news'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
@@ -102,7 +141,7 @@ if __name__ == "__main__":
     tokenizer = BertTokenizer.from_pretrained('prajjwal1/bert-small')
 
     if mode == 'wikihop':
-         #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
+        #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
         #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
         dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
         qid_struct = {}
@@ -136,32 +175,12 @@ if __name__ == "__main__":
 
             with open("/scratch/awd275/NLU_data/" + file_name, 'wb') as handle:
                 pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
     elif mode == '20news':
-        newsgroup_configs = ['bydate_alt.atheism',
-                         'bydate_comp.graphics',
-                         'bydate_comp.os.ms-windows.misc',
-                         'bydate_comp.sys.ibm.pc.hardware',
-                         'bydate_comp.sys.mac.hardware',
-                         'bydate_comp.windows.x',
-                         'bydate_misc.forsale',
-                         'bydate_rec.autos',
-                         'bydate_rec.motorcycles',
-                         'bydate_rec.sport.baseball',
-                         'bydate_rec.sport.hockey',
-                         'bydate_sci.crypt',
-                         'bydate_sci.electronics',
-                         'bydate_sci.med',
-                         'bydate_sci.space',
-                         'bydate_soc.religion.christian',
-                         'bydate_talk.politics.guns',
-                         'bydate_talk.politics.mideast',
-                         'bydate_talk.politics.misc',
-                         'bydate_talk.religion.misc']
-        splits = ['train','test']
         for split in splits: # Loop over train test
             dataset_list = []
             for config in newsgroup_configs: #loop over labels
-                subset_path = r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\\'+ split+ '\\'+ config
+                subset_path = data_dir + split+ '/'+ config
                 dataset_list.append((config,load_from_disk(subset_path)))
 
             for label, sub_dataset in dataset_list: #Loop over labels
@@ -171,7 +190,7 @@ if __name__ == "__main__":
                     prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
                     qid_struct[ii] = prob_seq
                 file_name = label + '_qid_struct.pkl'
-                with open(r"\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\20news\processed\\" + split + '\\' +file_name, 'wb') as handle:
+                with open(processed_dir + split + '/' + file_name, 'wb') as handle:
                     pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
 

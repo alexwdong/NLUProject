@@ -1,7 +1,21 @@
-from datasets import load_dataset,load_from_disk
+from datasets import load_dataset, load_from_disk
 
-# BEFORE RUNNING: Make a symbolic link between ~/NLU_data and /scratch/[user]/NLU_data
-# example: ln -s /scratch/ay1626/NLU_data ~/NLU_data
-# also, mkdir ~/NLU_data/raw
-dataset = load_dataset('trivia_qa', 'rc',cache_dir = '~/NLU_data/raw')
-dataset.save_to_disk('~/NLU_data/raw/trivia_qa')
+exec(open("../header.py").read())
+
+
+
+try:
+    os.mkdir(RAW_DIR('trivia_qa'))
+except FileExistsError:
+    print(f"{RAW_DIR('trivia_qa')} already exists.")
+
+dataset = load_dataset('trivia_qa', 'rc',cache_dir = RAW_DIR())
+dataset.save_to_disk(RAW_DIR('trivia_qa'))
+
+try:
+    os.mkdir(RAW_DIR('newsgroup'))
+except FileExistsError:
+    print(f"{RAW_DIR('newsgroup')} already exists.")
+    
+dataset2 = load_dataset('newsgroup', 'rc',cache_dir = RAW_DIR())
+dataset2.save_to_disk(RAW_DIR('newsgroup'))
