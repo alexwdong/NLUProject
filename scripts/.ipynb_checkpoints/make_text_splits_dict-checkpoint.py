@@ -116,7 +116,7 @@ if __name__ == "__main__":
         dataset_list = []
         for config in newsgroup_configs: #loop over labels
             subset_path = RAW_DIR(f'20news/{split}/{config}')
-            dataset_list.append((config,load_from_disk(subset_path)))
+            dataset_list.append((config, oad_from_disk(subset_path)))
 
         for label, sub_dataset in dataset_list: #Loop over labels
             qid_struct = {}
@@ -124,11 +124,8 @@ if __name__ == "__main__":
                 context = entry['text']
                 prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
                 qid_struct[ii] = prob_seq
-            file_name = label + '_qid_struct.pkl'
-            
-            
-                                     
-            with open(SEGMENT_DIR(f'20news/{split}/{file_name}'), 'wb') as handle:
+                                                 
+            with open(SEGMENT_DIR(f'20news/{split}/{label}_qid_struct.pkl'), 'wb') as handle:
                 pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
 
