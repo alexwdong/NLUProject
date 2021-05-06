@@ -1,18 +1,11 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+exec(open("../header.py").read())
 
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import DataLoader
 from tqdm.notebook import tqdm
-from transformers import BertTokenizer,BertModel
-
+from transformers import BertTokenizer, BertModel
 from torch.utils.data import Dataset
-
-from datasets import load_from_disk,load_dataset
-
-import pickle
-import argparse
+from datasets import load_from_disk, load_dataset
 
 def get_sentence_list(tokenizer,context):
     sentence_list = sent_tokenize(context)
@@ -57,12 +50,10 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
 # ArgParse
 parser = argparse.ArgumentParser(description='Takes "qid_struct" pickle file, and creates label_to_cutoff_indices')
 
-parser.add_argument('-t','--threshold',help='Probability Threshold where the split occurs if NSP falls below the threshold',required = True)
+parser.add_argument('-t','--threshold',help='Probability Threshold where the split occurs if NSP falls below the threshold', required = True)
 args = vars(parser.parse_args())
 
 threshold = float(args['threshold'])
-data_dir = args['data_dir']
-processed_dir = args['processed_dir']
 
 splits = ['train','test']
 

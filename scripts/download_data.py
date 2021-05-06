@@ -1,8 +1,6 @@
-from datasets import load_dataset, load_from_disk
-
 exec(open("../header.py").read())
 
-
+from datasets import load_dataset, load_from_disk
 
 try:
     os.mkdir(RAW_DIR('trivia_qa'))

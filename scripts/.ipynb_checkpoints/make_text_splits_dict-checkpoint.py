@@ -3,15 +3,8 @@ exec(open("../header.py").read())
 from torch.nn.functional import softmax
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_from_disk
-
 from nltk.tokenize import sent_tokenize
-
 from transformers import BertTokenizer,BertForNextSentencePrediction
-
-import pickle
-import json
-import torch
-import argparse
 
 class ContextDataset(Dataset):
     def __init__(self, sentence_pair_list):
@@ -93,14 +86,7 @@ splits = ['train','test']
 # Start Script
 if __name__ == "__main__":
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print('Using device:', device)
-
-    #Additional Info when using cuda
-    if device.type == 'cuda':
-        print(torch.cuda.get_device_name(0))
-        print('Memory Usage:')
-        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+    print_cuda_info(device)
       
     nsp_model = BertForNextSentencePrediction.from_pretrained('prajjwal1/bert-small')
     nsp_model.eval()
