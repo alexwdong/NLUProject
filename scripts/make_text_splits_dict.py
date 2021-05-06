@@ -1,15 +1,15 @@
+from nltk.tokenize import sent_tokenize
+from datasets import load_from_disk
 from torch.nn.functional import softmax
 from torch.utils.data import Dataset, DataLoader
-from datasets import load_from_disk
+from transformers import BertTokenizer, BertForNextSentencePrediction
 
-from nltk.tokenize import sent_tokenize
-
-from transformers import BertTokenizer,BertForNextSentencePrediction
-
-import pickle
-import json
-import torch
 import argparse
+import json
+import os
+import pickle
+import torch
+
 
 class ContextDataset(Dataset):
     def __init__(self, sentence_pair_list):
@@ -21,19 +21,22 @@ class ContextDataset(Dataset):
     def __getitem__(self,idx):
         return(self.sentence_pair_list[idx])
 
+
 def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
     '''
-    Returns a sequence of probabilities which represent confidence that the next sentence is part of the same segment
-    
-    If text has n sentences, then prob_seq has n-1 probabilities. (If text has 1 sentence, prob_seq is [], the empty list.)
-    The ii index of prob seq represents the NSP confidence of the ii and ii+1 sentences in text.
-    Probabilities closer to 1 indicate confidence, Probabilities closer to 0 indicate no confidence.
+        Returns a sequence of probabilities which represent confidence that the next sentence is part of the same segment
+
+        If text has n sentences, then prob_seq has n-1 probabilities. (If text has 1 sentence, prob_seq is [], the empty list.)
+        The ii index of prob seq represents the NSP confidence of the ii and ii+1 sentences in text.
+        Probabilities closer to 1 indicate confidence, Probabilities closer to 0 indicate no confidence.
     
     '''
+    
     sentence_list = sent_tokenize(text)
     over_length_indices = []
     sentence_pair_list=[]
     indices_to_be_processed=[]
+    
     #Create Sentence pair list
     if len(sentence_list)==1:
         return [],sentence_list # Return empty list for probs
@@ -86,18 +89,22 @@ def get_probabilities_on_text_w_NSP(nsp_model, text, tokenizer, device):
     return probs, sentence_list
 
 # ArgParse
-parser = argparse.ArgumentParser(description='Takes "label_to_cutoff_indices" pickle file, and creates BERT encoded segments')
+parser = argparse.ArgumentParser()
 
-parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
-parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required=True)
-parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the label_to_cutoff_indices pickle file and also where the output of this script will be stored', required=True)
+parser.add_argument('-d', '--dataset', help='what dataset are we using (currently only newsgroup is accepted)', default='20news')
+parser.add_argument('-m', '--model', help='A string, the model id of a pretrained model hosted inside a model repo on huggingface.co.', required=True)
+
 args = vars(parser.parse_args())
+dataset = args['dataset']
+model = args['model']
 
-mode = args['mode']
-data_dir = args['data_dir']
-processed_dir = args['processed_dir']
+raw_data_dir = '../data/raw/' + dataset + '/'
+segmentations_dir = '../data/segmentations/' + dataset + '/' + model + '/'
 
-if mode == 'newsgroup':
+if not os.path.exists(segmentations_dir):
+    os.makedirs(segmentations_dir)
+
+if dataset == '20news':
     newsgroup_configs = ['bydate_alt.atheism',
                          'bydate_comp.graphics',
                          'bydate_comp.os.ms-windows.misc',
@@ -119,10 +126,14 @@ if mode == 'newsgroup':
                          'bydate_talk.politics.misc',
                          'bydate_talk.religion.misc']
 
-    splits = ['train','test']
+    splits = ['train', 'test']
+    for split in splits:
+        if not os.path.exists(segmentations_dir + split):
+            os.makedirs(segmentations_dir + split)
 
 # Start Script
 if __name__ == "__main__":
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print('Using device:', device)
 
@@ -133,15 +144,15 @@ if __name__ == "__main__":
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
       
-    nsp_model = BertForNextSentencePrediction.from_pretrained('prajjwal1/bert-small')
+    nsp_model = BertForNextSentencePrediction.from_pretrained(model)
     nsp_model.eval()
     nsp_model.to(device)
-    tokenizer = BertTokenizer.from_pretrained('prajjwal1/bert-small')
+    tokenizer = BertTokenizer.from_pretrained(model)
 
-    if mode == 'wikihop':
+    if dataset == 'wikihop':
         #dataset = load_from_disk('/home/adong/School/NLUProject/data/trivia_qa_rc_tiny')
         #dataset = load_from_disk(r'\\wsl$\Ubuntu-20.04\home\jolteon\NLUProject\data\trivia_qa_rc_tiny')
-        dataset = load_from_disk('/scratch/awd275/NLU_data/trivia_qa_rc/')
+        dataset = load_from_disk(raw_data_dir)
         qid_struct = {}
         for key in dataset.keys():
             sub_dataset = dataset[key]
@@ -174,23 +185,19 @@ if __name__ == "__main__":
             with open("/scratch/awd275/NLU_data/" + file_name, 'wb') as handle:
                 pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
-    elif mode == '20news':
+    elif dataset == '20news':
         for split in splits: # Loop over train test
             dataset_list = []
             for config in newsgroup_configs: #loop over labels
-                subset_path = data_dir + split+ '/'+ config
-                dataset_list.append((config,load_from_disk(subset_path)))
+                subset_path = raw_data_dir + split + '/' + config
+                dataset_list.append((config, load_from_disk(subset_path)))
 
             for label, sub_dataset in dataset_list: #Loop over labels
                 qid_struct = {}
-                for ii, entry in enumerate(sub_dataset):# Loop over data entries with the same label
+                for ii, entry in enumerate(sub_dataset): # Loop over data entries with the same label
                     context = entry['text']
                     prob_seq , _ = get_probabilities_on_text_w_NSP(nsp_model, context, tokenizer, device)
                     qid_struct[ii] = prob_seq
                 file_name = label + '_qid_struct.pkl'
-                with open(processed_dir + split + '/' + file_name, 'wb') as handle:
+                with open(segmentations_dir + split + '/' + file_name, 'wb') as handle:
                     pickle.dump(qid_struct, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        
-
-        
-

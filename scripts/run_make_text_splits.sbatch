@@ -30,5 +30,3 @@ pyscript=/home/awd275/NLUProject/scripts/make_text_splits_dict.py
 $py3 $pyscript 
 
 
-
-
