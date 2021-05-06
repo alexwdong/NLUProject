@@ -1,4 +1,13 @@
 import os
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
+import pickle
+import json
+import torch
+import argparse
 
 # Run the following to set up a symbolic link
 # ln -s /scratch/awd275/NLU_data ~/NLU_data
@@ -39,3 +48,11 @@ newsgroup_configs = ['bydate_alt.atheism',
                      'bydate_talk.politics.mideast',
                      'bydate_talk.politics.misc',
                      'bydate_talk.religion.misc']
+
+def print_cuda_info(device):
+    print('Using device:', device)
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
