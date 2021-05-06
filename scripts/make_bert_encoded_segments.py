@@ -25,7 +25,7 @@ def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     segments_list = []
     #If cutoff indices is an empty list, means we don't split at all. then all the sentences get joined into one segment
     if len(cutoff_indices) == 0: 
-        segment = "".join(sentence_list).lower()
+        segment = "".join(sentence_list)
         encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         return segments_list
@@ -34,13 +34,13 @@ def create_segments_list(cutoff_indices, sentence_list,tokenizer):
     segments_list = []
     for split_idx in cutoff_indices: 
         grouped_sentences_list = sentence_list[start_idx:split_idx+1] 
-        segment = "".join(grouped_sentences_list).lower()
+        segment = "".join(grouped_sentences_list)
         encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True,return_tensors='pt')
         segments_list.append(encoded_segment)
         start_idx = split_idx+1
     # make last split
     grouped_sentences_list = sentence_list[start_idx:] 
-    segment = "".join(grouped_sentences_list).lower()
+    segment = "".join(grouped_sentences_list)
     encoded_segment = tokenizer.encode_plus(segment,add_special_tokens=True,padding='max_length',max_length=512,truncation=True, return_tensors='pt')
     segments_list.append(encoded_segment)
     #Return 
