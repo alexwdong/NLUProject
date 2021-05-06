@@ -3,18 +3,20 @@ import os
 # Run the following to set up a symbolic link
 # ln -s /scratch/awd275/NLU_data ~/NLU_data
 
-data_dir = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
-raw_dir = lambda x = '':data_dir(f'raw/{x}')
-segment_dir = lambda x = '':data_dir(f'segmentations/{x}')
-embeddings_dir = lambda x = '':data_dir(f'embeddings/{x}')
-results_dir = lambda x = '':data_dir(f'results/{x}')
+# Run `exec(open("../header.py").read())` at the beginning of each script to use header
+
+DATA_DIR = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
+RAW_DIR = lambda x = '':DATA_DIR(f'raw/{x}')
+SEGMENT_DIR = lambda x = '':DATA_DIR(f'segmentations/{x}')
+EMBEDDINGS_DIR = lambda x = '':DATA_DIR(f'embeddings/{x}')
+RESULTS_DIR = lambda x = '':DATA_DIR(f'results/{x}')
 
 all_roots = {
-    'data_dir':data_root(),
-    'raw_dir':raw_root(),
-    'segment_dir':segment_root(),
-    'embeddings_dir':embeddings_root(),
-    'results_dir':results_root()
+    'DATA_DIR':DATA_DIR(),
+    'RAW_DIR':RAW_DIR(),
+    'SEGMENT_DIR':SEGMENT_DIR(),
+    'EMBEDDINGS_DIR':EMBEDDINGS_DIR(),
+    'RESULTS_DIR':RESULTS_DIR()
 }
 
 newsgroup_configs = ['bydate_alt.atheism',

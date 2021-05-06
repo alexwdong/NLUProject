@@ -58,38 +58,14 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
 parser = argparse.ArgumentParser(description='Takes "qid_struct" pickle file, and creates label_to_cutoff_indices')
 
 parser.add_argument('-t','--threshold',help='Probability Threshold where the split occurs if NSP falls below the threshold',required = True)
-parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
-parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required = True)
-parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the all the qid_struct pickle files and also where the output of this script will be stored', required = True)
 args = vars(parser.parse_args())
 
 threshold = float(args['threshold'])
-mode = args['mode']
 data_dir = args['data_dir']
 processed_dir = args['processed_dir']
 
-if mode == 'newsgroup':
-    newsgroup_configs = ['bydate_alt.atheism',
-                         'bydate_comp.graphics',
-                         'bydate_comp.os.ms-windows.misc',
-                         'bydate_comp.sys.ibm.pc.hardware',
-                         'bydate_comp.sys.mac.hardware',
-                         'bydate_comp.windows.x',
-                         'bydate_misc.forsale',
-                         'bydate_rec.autos',
-                         'bydate_rec.motorcycles',
-                         'bydate_rec.sport.baseball',
-                         'bydate_rec.sport.hockey',
-                         'bydate_sci.crypt',
-                         'bydate_sci.electronics',
-                         'bydate_sci.med',
-                         'bydate_sci.space',
-                         'bydate_soc.religion.christian',
-                         'bydate_talk.politics.guns',
-                         'bydate_talk.politics.mideast',
-                         'bydate_talk.politics.misc',
-                         'bydate_talk.religion.misc']
-    splits = ['train','test']
+splits = ['train','test']
+
 # Start Script
 if __name__ == "__main__":
     # Use full sized bert model tokenizer
@@ -98,14 +74,14 @@ if __name__ == "__main__":
         #Load all newsgroups into dataset_list
         dataset_list = []
         for config in newsgroup_configs:
-            subset_path = data_dir + split+ '/'+ config
+            subset_path = RAW_DIR(f'20news/{split}/{config}')
             dataset_list.append((config,load_from_disk(subset_path)))
         
         # Create label_to_cutoff_indices_dict
         label_to_cutoff_indices_dict = {}
         for label, sub_dataset in dataset_list:
             #Load the probability of split from qid_struct
-            with open(processed_dir + split + '/' + label + "_qid_struct.pkl", 'rb') as handle:
+            with open(SEGMENT_DIR(f'20news/{split}/{label}_qid_struct.pkl'), 'rb') as handle:
                 #qid struct is just index ii for newsgroup dataset
                 #qid struct is question id for wikihop dataset
                 qid_struct = pickle.load(handle)
@@ -119,7 +95,8 @@ if __name__ == "__main__":
                 idx_to_cutoff_indices[ii] = cutoff_indices
             label_to_cutoff_indices_dict[label] = idx_to_cutoff_indices
         
-        with open(processed_dir + split + '/' + 'label_to_cutoff_indices_' + str(threshold) +'.pkl', 'wb') as handle:
+        output_file = SEGMENT_DIR(f'20news/{split}/label_to_cutoff_indices_{threshold}.pkl')
+        with open(output_file, 'wb') as handle:
             pickle.dump(label_to_cutoff_indices_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
