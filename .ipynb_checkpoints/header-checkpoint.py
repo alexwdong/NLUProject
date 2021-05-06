@@ -3,18 +3,18 @@ import os
 # Run the following to set up a symbolic link
 # ln -s /scratch/awd275/NLU_data ~/NLU_data
 
-data_dir = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
-raw_dir = lambda x = '':data_dir(f'raw/{x}')
-segment_dir = lambda x = '':data_dir(f'segmentations/{x}')
-embeddings_dir = lambda x = '':data_dir(f'embeddings/{x}')
-results_dir = lambda x = '':data_dir(f'results/{x}')
+DATA_DIR = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
+RAW_DIR = lambda x = '':data_dir(f'raw/{x}')
+SEGMENT_DIR = lambda x = '':data_dir(f'segmentations/{x}')
+EMBEDDINGS_DIR = lambda x = '':data_dir(f'embeddings/{x}')
+RESULTS_DIR = lambda x = '':data_dir(f'results/{x}')
 
 all_roots = {
-    'data_dir':data_root(),
-    'raw_dir':raw_root(),
-    'segment_dir':segment_root(),
-    'embeddings_dir':embeddings_root(),
-    'results_dir':results_root()
+    'data_dir':DATA_DIR(),
+    'raw_dir':RAW_DIR(),
+    'segment_dir':SEGMENT_DIR(),
+    'embeddings_dir':EMBEDDINGS_DIR(),
+    'results_dir':RESULTS_DIR()
 }
 
 newsgroup_configs = ['bydate_alt.atheism',
