@@ -10,7 +10,7 @@ import torch
 import argparse
 
 # Run the following to set up a symbolic link
-# ln -s /scratch/awd275/NLU_data ~/NLU_data
+# ln -s /scratch/ss11404/nlu/NLUProject/data/ ~/NLU_data
 
 # Run `exec(open("../header.py").read())` at the beginning of each script to use header
 

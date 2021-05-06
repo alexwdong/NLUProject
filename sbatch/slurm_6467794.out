@@ -1,0 +1,9 @@
+Some weights of the model checkpoint at prajjwal1/bert-small were not used when initializing BertForNextSentencePrediction: ['cls.predictions.bias', 'cls.predictions.transform.dense.weight', 'cls.predictions.transform.dense.bias', 'cls.predictions.transform.LayerNorm.weight', 'cls.predictions.transform.LayerNorm.bias', 'cls.predictions.decoder.weight', 'cls.predictions.decoder.bias']
+- This IS expected if you are initializing BertForNextSentencePrediction from the checkpoint of a model trained on another task or with another architecture (e.g. initializing a BertForSequenceClassification model from a BertForPreTraining model).
+- This IS NOT expected if you are initializing BertForNextSentencePrediction from the checkpoint of a model that you expect to be exactly identical (initializing a BertForSequenceClassification model from a BertForSequenceClassification model).
+Using device: cpu
+Created folder: /home/ay1626/NLU_data/segmentations/20news/train
+Traceback (most recent call last):
+  File "/home/ay1626/NLUProject/scripts/make_text_splits_dict.py", line 115, in <module>
+    with open(SEGMENT_DIR(f'20news/{split}/{label}_qid_struct.pkl'), 'wb') as handle:
+FileNotFoundError: [Errno 2] No such file or directory: '/home/ay1626/NLU_data/segmentations/20news/train/bydate_comp.sys.ibm.pc.hardware_qid_struct.pkl'
