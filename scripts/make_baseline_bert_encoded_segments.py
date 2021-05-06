@@ -155,6 +155,6 @@ if __name__ == "__main__":
                     bert_encoded_segments = torch.cat(batch_encoded_seg_list)
                     bert_encoded_segments_list.append((label_to_label_idx_dict[label],bert_encoded_segments.cpu()))
 
-        file_name = 'bert_encoded_segments_list_overlap_' + str(seq_len) + '_' + str(shift_len)
+        file_name = 'bert_encoded_segments_list_overlap_' + str(sequence_length) + '_' + str(shift_length)
         with open(processed_dir + split + '/' + file_name  + '.pkl', 'wb') as handle:
             pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
