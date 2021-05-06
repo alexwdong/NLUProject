@@ -1,18 +1,14 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
+from datasets import load_from_disk,load_dataset
 from nltk.tokenize import sent_tokenize
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from tqdm.notebook import tqdm
 from transformers import BertTokenizer,BertModel
 
-from torch.utils.data import Dataset
-
-from datasets import load_from_disk,load_dataset
-
-import pickle
 import argparse
+import pickle
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 def get_sentence_list(tokenizer,context):
     sentence_list = sent_tokenize(context)
@@ -25,7 +21,7 @@ def get_sentence_list(tokenizer,context):
 
 def apply_threshold(prob_seq,tokens_per_sentence_list,threshold):
     '''
-    If prob_seq is empty, we will return and empty list.
+        If prob_seq is empty, we will return and empty list.
     '''
     # Initialize
     cutoff_indices = []
@@ -53,22 +49,21 @@ def get_cutoff_indices(text, threshold, nsp_model,tokenizer, device):
     
     return cutoff_indices
 
-
 # ArgParse
 parser = argparse.ArgumentParser(description='Takes "qid_struct" pickle file, and creates label_to_cutoff_indices')
 
-parser.add_argument('-t','--threshold',help='Probability Threshold where the split occurs if NSP falls below the threshold',required = True)
-parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
-parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required = True)
-parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the all the qid_struct pickle files and also where the output of this script will be stored', required = True)
+parser.add_argument('-t','--threshold',help='Probability Threshold where the split occurs if NSP falls below the threshold',required=True)
+parser.add_argument('-d', '--dataset', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
+parser.add_argument('-m', '--model', help='A string, the model id of a pretrained model hosted inside a model repo on huggingface.co.', required=True)
 args = vars(parser.parse_args())
 
 threshold = float(args['threshold'])
-mode = args['mode']
-data_dir = args['data_dir']
-processed_dir = args['processed_dir']
+dataset = args['dataset']
+model = args['model']
+raw_dir = '../data/raw/' + dataset + '/'
+segmentations_dir = '../data/segmentations/' + dataset + '/' + model + '/'
 
-if mode == 'newsgroup':
+if dataset == '20news':
     newsgroup_configs = ['bydate_alt.atheism',
                          'bydate_comp.graphics',
                          'bydate_comp.os.ms-windows.misc',
@@ -90,22 +85,24 @@ if mode == 'newsgroup':
                          'bydate_talk.politics.misc',
                          'bydate_talk.religion.misc']
     splits = ['train','test']
+
 # Start Script
 if __name__ == "__main__":
     # Use full sized bert model tokenizer
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+    tokenizer = BertTokenizer.from_pretrained(model)
     for split in splits: #Loop over train, test
         #Load all newsgroups into dataset_list
         dataset_list = []
         for config in newsgroup_configs:
-            subset_path = data_dir + split+ '/'+ config
-            dataset_list.append((config,load_from_disk(subset_path)))
+            subset_path = raw_dir + split + '/' + config
+            dataset_list.append((config, load_from_disk(subset_path)))
         
         # Create label_to_cutoff_indices_dict
         label_to_cutoff_indices_dict = {}
         for label, sub_dataset in dataset_list:
             #Load the probability of split from qid_struct
-            with open(processed_dir + split + '/' + label + "_qid_struct.pkl", 'rb') as handle:
+            with open(segmentations_dir + split + '/' + label + "_qid_struct.pkl", 'rb') as handle:
                 #qid struct is just index ii for newsgroup dataset
                 #qid struct is question id for wikihop dataset
                 qid_struct = pickle.load(handle)
@@ -119,7 +116,7 @@ if __name__ == "__main__":
                 idx_to_cutoff_indices[ii] = cutoff_indices
             label_to_cutoff_indices_dict[label] = idx_to_cutoff_indices
         
-        with open(processed_dir + split + '/' + 'label_to_cutoff_indices_' + str(threshold) +'.pkl', 'wb') as handle:
+        with open(segmentations_dir + split + '/' + 'label_to_cutoff_indices_' + str(threshold) +'.pkl', 'wb') as handle:
             pickle.dump(label_to_cutoff_indices_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
