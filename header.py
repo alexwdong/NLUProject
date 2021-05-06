@@ -6,17 +6,17 @@ import os
 # Run `exec(open("../header.py").read())` at the beginning of each script to use header
 
 DATA_DIR = lambda x = '':os.path.expanduser(f'~/NLU_data/{x}')
-RAW_DIR = lambda x = '':data_dir(f'raw/{x}')
-SEGMENT_DIR = lambda x = '':data_dir(f'segmentations/{x}')
-EMBEDDINGS_DIR = lambda x = '':data_dir(f'embeddings/{x}')
-RESULTS_DIR = lambda x = '':data_dir(f'results/{x}')
+RAW_DIR = lambda x = '':DATA_DIR(f'raw/{x}')
+SEGMENT_DIR = lambda x = '':DATA_DIR(f'segmentations/{x}')
+EMBEDDINGS_DIR = lambda x = '':DATA_DIR(f'embeddings/{x}')
+RESULTS_DIR = lambda x = '':DATA_DIR(f'results/{x}')
 
 all_roots = {
-    'data_dir':DATA_DIR(),
-    'raw_dir':RAW_DIR(),
-    'segment_dir':SEGMENT_DIR(),
-    'embeddings_dir':EMBEDDINGS_DIR(),
-    'results_dir':RESULTS_DIR()
+    'DATA_DIR':DATA_DIR(),
+    'RAW_DIR':RAW_DIR(),
+    'SEGMENT_DIR':SEGMENT_DIR(),
+    'EMBEDDINGS_DIR':EMBEDDINGS_DIR(),
+    'RESULTS_DIR':RESULTS_DIR()
 }
 
 newsgroup_configs = ['bydate_alt.atheism',
