@@ -95,14 +95,15 @@ if __name__ == "__main__":
 
     for split in splits: # Loop over train test
         try:
-            os.mkdir(SEGMENT_DIR(f'20news/{split}))
+            os.mkdir(SEGMENT_DIR(f'20news/{split}'))
+            print("Created folder: " + SEGMENT_DIR(f'20news/{split}'))
         except FileExistsError:
             pass
         
         dataset_list = []
         for config in newsgroup_configs: #loop over labels
             subset_path = RAW_DIR(f'20news/{split}/{config}')
-            dataset_list.append((config, oad_from_disk(subset_path)))
+            dataset_list.append((config, load_from_disk(subset_path)))
 
         for label, sub_dataset in dataset_list: #Loop over labels
             qid_struct = {}

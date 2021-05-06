@@ -16,4 +16,4 @@ module load anaconda3/2020.07
 export PYTHONPATH="./"
 
 # Execute the script
-python ~/NLUProject/scripts/download_data.py
+python ~/NLUProject/scripts/make_text_splits_dict.py
