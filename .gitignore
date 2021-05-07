@@ -1,4 +1,6 @@
-notebooks/baseline_models/us-consumer-finance-complaints/
-notebooks/baseline_models/model*
-.ipynb_checkpoints
-.out
+# Jupyter NB Checkpoints
+.ipynb_checkpoints/
+scripts/.ipynb_checkpoints/
+
+# exclude data from source control by default
+data/

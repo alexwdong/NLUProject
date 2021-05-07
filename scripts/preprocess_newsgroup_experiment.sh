@@ -1,7 +1,5 @@
 #! /bin/bash
 
-
-
 threshold=.95
 mode=newsgroup
 data_dir='/home/jolteon/NLUProject/data/20news/'
