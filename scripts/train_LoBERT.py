@@ -1,19 +1,17 @@
+from datasets import load_from_disk, load_dataset
+from torch.nn.utils.rnn import pack_sequence
+from torch.utils.data import Dataset, DataLoader
+from transformers import BertTokenizer,BertModel
+
+import argparse
+import numpy as np
+import os
+import pickle
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
 
-import numpy as np
-
-from transformers import BertTokenizer,BertModel
-from datasets import load_from_disk,load_dataset
-
-import matplotlib.pyplot as plt
-
-import pickle
-import argparse
 
 class EncodedSegmentsDataset(Dataset):
     def __init__(self,data_list):
@@ -26,9 +24,12 @@ class EncodedSegmentsDataset(Dataset):
         return(self.data_list[idx])
     
 class LSTMoverBERT(nn.Module):
-    def __init__(self):
+    def __init__(self, model_save_dir):
         super().__init__()
-        self.LSTM = nn.LSTM(input_size=768,hidden_size = 128,num_layers=1,batch_first=True)
+        if 'large' in model_save_dir:
+            self.LSTM = nn.LSTM(input_size=1024, hidden_size = 128, num_layers=1)
+        else:
+            self.LSTM = nn.LSTM(input_size=768, hidden_size = 128, num_layers=1)
         self.activation = nn.ReLU()
         self.linear1 = nn.Linear(in_features=128,out_features=64)
         self.linear2 = nn.Linear(in_features=64,out_features=20)
@@ -52,6 +53,14 @@ class LSTMoverBERT(nn.Module):
         out = self.softmax(out)
         return out
 
+def pad_collate(batch):
+    (labels_list, sequence_list) = zip(*batch)
+    labels_tensor = torch.cat(labels_list)
+    x_lens = [len(sequence) for sequence in sequence_list]
+    sequence_list_padded = pack_sequence(sequence_list, enforce_sorted=False)
+
+    return labels_tensor, sequence_list_padded
+    
 def train_loop(LoBERT_model, encoded_train_loader, optimizer, criterion):
     LoBERT_model.train()
     train_loss = 0
@@ -66,21 +75,17 @@ def train_loop(LoBERT_model, encoded_train_loader, optimizer, criterion):
         model_input = model_input.to(device)
         # Forward Pass
         out = LoBERT_model(model_input)
-        loss = criterion(out,label)
+        loss = criterion(out, label)
         #Record Metrics pt 1/2
         train_loss += loss.item()
-        pred = torch.argmax(out)
-        train_correct +=(pred == label).sum()
+        pred = torch.argmax(out, axis=1)
+        train_correct += (pred == label).sum()
 
         #Backward pass
         loss.backward()
         optimizer.step()
     
-    # Record Metrics pt 2/2
-    train_loss = train_loss / len(encoded_train_loader)
-    train_accuracy = train_correct / len(encoded_train_loader)
-    
-    return train_loss, train_accuracy
+    return train_loss, train_correct
 
 def val_loop(LoBERT_model, encoded_val_loader, criterion):
     LoBERT_model.eval()
@@ -99,29 +104,31 @@ def val_loop(LoBERT_model, encoded_val_loader, criterion):
             loss = criterion(out,label)
             # Record metrics pt 1/2
             val_loss += loss.item()
-            pred = torch.argmax(out)
+            pred = torch.argmax(out, axis=1)
             val_correct +=(pred == label).sum()
     
-    val_loss = val_loss / len(encoded_val_loader)
-    val_accuracy = val_correct / len(encoded_val_loader)
-    return val_loss, val_accuracy
+    return val_loss, val_correct
 
     
 parser = argparse.ArgumentParser(description='Trains the LoBERT Model and dumps results')
 
-parser.add_argument('-e','--epochs', help='number of epochs to train',default=50)
-parser.add_argument('-i','--input', help='bert_encoded_segments_list_file',required=True)
-parser.add_argument('-m','--model_save_path', help='model save path',required=True)
-parser.add_argument('-o','--output', help='output path')
+parser.add_argument('-e','--epochs', help='number of epochs to train', default=50)
+parser.add_argument('-i','--input', help='bert_encoded_segments_list_file', required=True)
 
 args = vars(parser.parse_args())
     
 num_epochs = int(args['epochs'])
 bert_encoded_input_file = args['input']
-model_save_path = args['model_save_path']
-results_path = args['output']
+model_save_path = bert_encoded_input_file.replace('embeddings', 'models')
+model_save_dir = '/'.join(model_save_path.split('/')[:-1])
+results_path = bert_encoded_input_file.replace('embeddings', 'results')
+results_dir = '/'.join(results_path.split('/')[:-1])
 
-
+if not os.path.exists(model_save_dir):
+    os.makedirs(model_save_dir)
+    
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device:', device)
@@ -133,31 +140,35 @@ if device.type == 'cuda':
     print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
     print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
     
     # Our experiment below
     # Baseline (Hierarchical Transformers Pappagari) below
     with open(bert_encoded_input_file, 'rb') as handle:
         bert_encoded_segments_list = pickle.load(handle)
 
+    for document in bert_encoded_segments_list:
+        print(document)
+        break
+        
     encoded_dataset = EncodedSegmentsDataset(bert_encoded_segments_list)
     val_prop =.1
-    bsize = 1
+    bsize = 128
 
     dataset_size = len(encoded_dataset)
     val_size = int(val_prop * dataset_size)
     train_size = dataset_size - val_size
 
     train_dataset, val_dataset =  torch.utils.data.random_split(encoded_dataset,[train_size,val_size])
-    encoded_train_loader = DataLoader(train_dataset,batch_size=bsize,shuffle=True, pin_memory=True)
-    encoded_val_loader = DataLoader(val_dataset,batch_size=bsize,shuffle=True, pin_memory=True)
+    encoded_train_loader = DataLoader(train_dataset,batch_size=bsize, shuffle=True, pin_memory=True, collate_fn=pad_collate)
+    encoded_val_loader = DataLoader(val_dataset,batch_size=bsize, shuffle=True, pin_memory=True, collate_fn=pad_collate)
 
     # Define LoBERT 
-    LoBERT_model = LSTMoverBERT()
+    LoBERT_model = LSTMoverBERT(model_save_dir)
     LoBERT_model.to(device)
     LoBERT_model.train()
     criterion = nn.CrossEntropyLoss(reduction='sum')
-    optimizer = optim.Adam(LoBERT_model.parameters(),lr=5e-4,)
+    optimizer = optim.Adam(LoBERT_model.parameters(), lr=5e-4)
 
     # Train over epochs
     best_val_accuracy = 0
@@ -169,19 +180,21 @@ if __name__ == "__main__" :
     for epoch in range(num_epochs):  # loop over the dataset multiple times
         #START TRAIN
         
-        train_loss, train_accuracy = train_loop(LoBERT_model, encoded_train_loader, optimizer, criterion)
+        train_loss, train_correct = train_loop(LoBERT_model, encoded_train_loader, optimizer, criterion)
         #Print and save
-        print('Epoch:', epoch, 'train_loss:',train_loss, 'accuracy: ',train_accuracy)
-        train_loss_list.append(train_loss)
-        train_accuracy_list.append(train_accuracy.cpu())
+        train_accuracy = train_correct / train_size
+        print('Epoch:', epoch, 'train_loss:', train_loss, 'accuracy: ', train_accuracy)
+        train_loss_list.append(train_loss / train_size)
+        train_accuracy_list.append(train_accuracy)
 
         # START VAL
-        val_loss, val_accuracy = val_loop(LoBERT_model, encoded_val_loader, criterion)
+        val_loss, val_correct = val_loop(LoBERT_model, encoded_val_loader, criterion)
         
         # Print and save
-        print('Epoch:', epoch, 'val_loss:',val_loss, 'accuracy: ',val_accuracy)
-        val_loss_list.append(val_loss)
-        val_accuracy_list.append(val_accuracy.cpu())
+        val_accuracy = val_correct / val_size
+        print('Epoch:', epoch, 'val_loss:', val_loss, 'accuracy: ', val_accuracy)
+        val_loss_list.append(val_loss / val_size)
+        val_accuracy_list.append(val_accuracy)
 
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
@@ -191,14 +204,6 @@ if __name__ == "__main__" :
                'val_loss' : val_loss_list,
                'train_accuracy' : train_accuracy_list,
                'val_accuracy' : val_accuracy_list
-
-
         }
     with open(results_path, 'wb') as handle:
         pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-
-
-        
-        

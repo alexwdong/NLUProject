@@ -59,22 +59,21 @@ def create_overlaps(tokens, sequence_length=200, shift_length=50):
 # Argparse
 parser = argparse.ArgumentParser(description='Make baseline bert encoded segments. Baseline is splits as described in Pappagari 2019. (e.g 200 tokens with a shift of 50.)')
 
-parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
-
-parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required=True)
-parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the label_to_cutoff_indices pickle file and also where the output of this script will be stored', required=True)
-parser.add_argument('-l','--sequence_length',help='Sequence length. This is the number of tokens each segment contains.',required=True)
-parser.add_argument('-s','--shift_length',help='Shift length. This is the number of tokens to shift between each segment. Two consecutive segments will overlap by sequence_length - shift_length tokens',required=True)
+parser.add_argument('-d', '--dataset', help='what dataset are we using (currently only newsgroup is accepted)', default='20news')
+parser.add_argument('-m', '--model', help='A string, the model id of a pretrained model hosted inside a model repo on huggingface.co.', required=True)
+parser.add_argument('-l','--sequence_length', help='Sequence length. This is the number of tokens each segment contains.', required=True)
+parser.add_argument('-s','--shift_length', help='Shift length. This is the number of tokens to shift between each segment. Two consecutive segments will overlap by sequence_length - shift_length tokens', required=True)
 
 args = vars(parser.parse_args())
-
-mode = args['mode']
-data_dir = args['data_dir']
-processed_dir = args['processed_dir']
+dataset = args['dataset']
+model = args['model']
 sequence_length = int(args['sequence_length'])
 shift_length = int(args['shift_length'])
 
-if mode =='newsgroup':
+raw_dir = '../data/raw/' + dataset + '/'
+embeddings_dir = '../data/embeddings/' + dataset + '/' + model + '/'
+
+if dataset =='20news':
     newsgroup_configs = ['bydate_alt.atheism',
                          'bydate_comp.graphics',
                          'bydate_comp.os.ms-windows.misc',
@@ -112,8 +111,8 @@ if __name__ == "__main__":
 
     
     #Initialize Tokenizer and Model
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    bert_model = BertModel.from_pretrained('bert-base-uncased')
+    tokenizer = BertTokenizer.from_pretrained(model)
+    bert_model = BertModel.from_pretrained(model)
     bert_model.eval()
     bert_model.to(device)
 
@@ -121,8 +120,8 @@ if __name__ == "__main__":
         # Load each dataset
         dataset_list = []
         for config in newsgroup_configs:
-            subset_path = data_dir + split + '/' + config
-            dataset_list.append((config,load_from_disk(subset_path)))
+            subset_path = raw_dir + split + '/' + config
+            dataset_list.append((config, load_from_disk(subset_path)))
 
         # create label_to_label_idx_dict
         label_to_label_idx_dict={}
@@ -134,7 +133,7 @@ if __name__ == "__main__":
             for entry in sub_dataset: #Loop inside the dataset
                 # get text and CLS token
                 text = entry['text']
-                tokens = tokenizer.encode(text,add_special_tokens=False,return_tensors='pt')[0]
+                tokens = tokenizer.encode(text,add_special_tokens=False, return_tensors='pt')[0]
                 # Start the While loop - here, we try to get spans of 200 tokens, with a shift of 50. 
                 # E.g if the sequence is 300 tokens, we get [0,199][50,249],[100,299]
 
@@ -156,5 +155,5 @@ if __name__ == "__main__":
                     bert_encoded_segments_list.append((label_to_label_idx_dict[label],bert_encoded_segments.cpu()))
 
         file_name = 'bert_encoded_segments_list_overlap_' + str(sequence_length) + '_' + str(shift_length)
-        with open(processed_dir + split + '/' + file_name  + '.pkl', 'wb') as handle:
+        with open(embeddings_dir + split + '/' + file_name  + '.pkl', 'wb') as handle:
             pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
