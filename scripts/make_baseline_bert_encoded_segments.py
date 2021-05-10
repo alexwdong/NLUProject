@@ -1,4 +1,8 @@
-exec(open("../header.py").read())
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+
 
 from nltk.tokenize import sent_tokenize
 from torch.utils.data import DataLoader
@@ -55,21 +59,57 @@ def create_overlaps(tokens, sequence_length=200, shift_length=50):
 # Argparse
 parser = argparse.ArgumentParser(description='Make baseline bert encoded segments. Baseline is splits as described in Pappagari 2019. (e.g 200 tokens with a shift of 50.)')
 
+parser.add_argument('-m', '--mode', help='what dataset are we using (currently only newsgroup is accepted)', default='newsgroup')
+
+parser.add_argument('-d', '--data_dir', help='path_to_data_dir', required=True)
+parser.add_argument('-p', '--processed_dir', help = 'path to processed_dir, which contains the label_to_cutoff_indices pickle file and also where the output of this script will be stored', required=True)
 parser.add_argument('-l','--sequence_length',help='Sequence length. This is the number of tokens each segment contains.',required=True)
 parser.add_argument('-s','--shift_length',help='Shift length. This is the number of tokens to shift between each segment. Two consecutive segments will overlap by sequence_length - shift_length tokens',required=True)
 
 args = vars(parser.parse_args())
 
 mode = args['mode']
+data_dir = args['data_dir']
+processed_dir = args['processed_dir']
 sequence_length = int(args['sequence_length'])
 shift_length = int(args['shift_length'])
 
-splits = ['train','test']
+if mode =='newsgroup':
+    newsgroup_configs = ['bydate_alt.atheism',
+                         'bydate_comp.graphics',
+                         'bydate_comp.os.ms-windows.misc',
+                         'bydate_comp.sys.ibm.pc.hardware',
+                         'bydate_comp.sys.mac.hardware',
+                         'bydate_comp.windows.x',
+                         'bydate_misc.forsale',
+                         'bydate_rec.autos',
+                         'bydate_rec.motorcycles',
+                         'bydate_rec.sport.baseball',
+                         'bydate_rec.sport.hockey',
+                         'bydate_sci.crypt',
+                         'bydate_sci.electronics',
+                         'bydate_sci.med',
+                         'bydate_sci.space',
+                         'bydate_soc.religion.christian',
+                         'bydate_talk.politics.guns',
+                         'bydate_talk.politics.mideast',
+                         'bydate_talk.politics.misc',
+                         'bydate_talk.religion.misc']
+
+    splits = ['train','test']
 
 if __name__ == "__main__":
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print_cuda_info(device)
+    print('Using device:', device)
+
+    #Additional Info when using cuda
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
     
     #Initialize Tokenizer and Model
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -81,7 +121,7 @@ if __name__ == "__main__":
         # Load each dataset
         dataset_list = []
         for config in newsgroup_configs:
-            subset_path = RAW_DIR(f'20news/{split}/{config}')
+            subset_path = data_dir + split + '/' + config
             dataset_list.append((config,load_from_disk(subset_path)))
 
         # create label_to_label_idx_dict
@@ -115,6 +155,6 @@ if __name__ == "__main__":
                     bert_encoded_segments = torch.cat(batch_encoded_seg_list)
                     bert_encoded_segments_list.append((label_to_label_idx_dict[label],bert_encoded_segments.cpu()))
 
-        file_name = EMBEDDINGS_DIR(f'20news/{split}/bert_encoded_segments_list_overlap_{sequence_length}_{shift_length}.pkl')
-        with open(file_name, 'wb') as handle:
+        file_name = 'bert_encoded_segments_list_overlap_' + str(sequence_length) + '_' + str(shift_length)
+        with open(processed_dir + split + '/' + file_name  + '.pkl', 'wb') as handle:
             pickle.dump(bert_encoded_segments_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
