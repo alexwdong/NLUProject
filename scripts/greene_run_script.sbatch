@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=4GB
+#SBATCH --mem=16GB
 #SBATCH --gres=gpu:1
-#SBATCH --time=3:00:00
+#SBATCH --time=9:00:00
 
 module purge
 . ~/.bashrc
