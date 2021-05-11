@@ -1,6 +1,7 @@
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 scripts/.ipynb_checkpoints/
+scripts/*.out
 
 # exclude data from source control by default
 data/
