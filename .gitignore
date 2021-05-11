@@ -1,5 +1,6 @@
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
 scripts/.ipynb_checkpoints/
 scripts/*.out
 
